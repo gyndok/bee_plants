@@ -55,8 +55,14 @@ src/
     BloomCalendar.tsx       # client component: search, filters, cards, timeline
   data/
     plants.ts               # AUTO-GENERATED typed plant data (225 entries)
+    photos.ts               # AUTO-GENERATED photo manifest (credit/license)
+public/
+  photos/                   # optimized plant photos (one .jpg per species)
 scripts/
-  parse-pdf.mjs             # regenerates the dataset from the source PDF text
+  parse-pdf.mjs             # regenerates the plant dataset from the PDF text
+  fetch-photos.mjs          # finds one CC photo per plant on iNaturalist
+  fetch-missing.mjs         # targeted re-fetch for any misses
+  build-photos.mjs          # downloads/optimizes photos + writes photos.ts
 ```
 
 ## Regenerating the data
@@ -85,6 +91,32 @@ The pipeline is:
 
 > Note: common/scientific names are preserved exactly as printed in the source
 > PDF, including a couple of original typos (e.g. *Hymenocallis liriosme*).
+
+## Plant photos
+
+Each plant has one representative photo, shown as a thumbnail on its card and in
+the timeline, and full-size in the detail modal (click any plant).
+
+- **Source:** the [iNaturalist API](https://api.inaturalist.org/v1/docs/),
+  matched by scientific name.
+- **Licensing:** only Creative Commons / CC0 photos are used; the photographer
+  credit, license code, and source link are stored per photo in `photos.ts` and
+  shown in the detail modal.
+- **Coverage:** all 225 plants have a photo. Plants without one fall back to a
+  season-colored placeholder tile.
+- **Display:** served through `next/image` (lazy-loaded, responsive, optimized),
+  so the grid stays fast despite 225 images.
+
+To regenerate the photo set:
+
+```bash
+node scripts/fetch-photos.mjs    # query iNaturalist, write photos-raw.json
+node scripts/fetch-missing.mjs   # optional: retry any misses with fixes
+node scripts/build-photos.mjs    # download + optimize + write photos.ts
+```
+
+`build-photos.mjs` uses the built-in macOS `sips` tool to resize/recompress, so
+no extra image dependencies are required.
 
 ## Data fields
 

@@ -1877,7 +1877,7 @@ export const plants: Plant[] = [
   },
   {
     "common": "Texas grama",
-    "scientific": "Bouteloua rigidiseta Texas lantana",
+    "scientific": "Bouteloua rigidiseta",
     "type": "Grass-like",
     "light": "Sun",
     "soil": "Dry",

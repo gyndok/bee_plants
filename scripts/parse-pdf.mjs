@@ -97,6 +97,11 @@ const fixups = {
 };
 for (const p of plants) {
   if (fixups[p.common]) Object.assign(p, fixups[p.common]);
+  // "Texas grama" sits right above the name-on-its-own-line "Texas lantana"
+  // with no blank between, so its scientific name absorbed that label.
+  if (p.scientific.endsWith(' Texas lantana')) {
+    p.scientific = p.scientific.replace(/ Texas lantana$/, '');
+  }
 }
 
 fs.writeFileSync(process.argv[3], JSON.stringify(plants, null, 2));

@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { Plant } from "@/data/plants";
+import { photos } from "@/data/photos";
 
 const MONTH_LABELS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MONTH_FULL = [
@@ -45,6 +47,7 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
   const [caterpillar, setCaterpillar] = useState(false);
   const [sort, setSort] = useState<SortKey>("bloom");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selected, setSelected] = useState<Plant | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -246,10 +249,12 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
           No plants match these filters. Try clearing a few.
         </p>
       ) : view === "cards" ? (
-        <CardsView plants={filtered} />
+        <CardsView plants={filtered} onSelect={setSelected} />
       ) : (
-        <TimelineView plants={filtered} />
+        <TimelineView plants={filtered} onSelect={setSelected} />
       )}
+
+      <PlantModal plant={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
@@ -334,16 +339,70 @@ function ValueBadges({ plant }: { plant: Plant }) {
   );
 }
 
-function CardsView({ plants }: { plants: Plant[] }) {
+function PlantThumb({
+  plant,
+  className,
+  sizes,
+}: {
+  plant: Plant;
+  className?: string;
+  sizes: string;
+}) {
+  const photo = photos[plant.scientific];
+  return (
+    <div className={`relative overflow-hidden bg-leaf-soft ${className ?? ""}`}>
+      {photo ? (
+        <Image
+          src={photo.src}
+          alt={plant.common}
+          fill
+          sizes={sizes}
+          className="object-cover"
+        />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center text-lg"
+          style={{ background: `${seasonColor(plant.seasonKey)}22` }}
+          aria-hidden
+        >
+          🌿
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardsView({
+  plants,
+  onSelect,
+}: {
+  plants: Plant[];
+  onSelect: (p: Plant) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {plants.map((p) => (
         <article
           key={p.common + p.scientific}
-          className="group flex flex-col rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-md"
+          onClick={() => onSelect(p)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect(p);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={`View details for ${p.common}`}
+          className="group flex cursor-pointer flex-col rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf"
         >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
+          <div className="flex items-start gap-3">
+            <PlantThumb
+              plant={p}
+              className="h-14 w-14 shrink-0 rounded-xl"
+              sizes="56px"
+            />
+            <div className="min-w-0 flex-1">
               <h3 className="font-semibold leading-tight">{p.common}</h3>
               <p className="mt-0.5 text-sm italic text-muted">{p.scientific}</p>
             </div>
@@ -408,27 +467,41 @@ function monthRange(start: number, end: number) {
   return start === end ? MONTH_FULL[start - 1] : `${MONTH_FULL[start - 1]}–${MONTH_FULL[end - 1]}`;
 }
 
-function TimelineView({ plants }: { plants: Plant[] }) {
+function TimelineView({
+  plants,
+  onSelect,
+}: {
+  plants: Plant[];
+  onSelect: (p: Plant) => void;
+}) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
       <div className="min-w-[760px]">
         {/* Month header */}
-        <div className="sticky top-0 grid grid-cols-[220px_repeat(12,1fr)] border-b border-border bg-card text-center text-xs font-semibold text-muted">
+        <div className="sticky top-0 grid grid-cols-[240px_repeat(12,1fr)] border-b border-border bg-card text-center text-xs font-semibold text-muted">
           <div className="px-4 py-2 text-left">Plant</div>
           {MONTH_FULL.map((m) => (
             <div key={m} className="py-2">{m}</div>
           ))}
         </div>
         {plants.map((p, idx) => (
-          <div
+          <button
             key={p.common + p.scientific}
-            className={`grid grid-cols-[220px_repeat(12,1fr)] items-center ${
+            onClick={() => onSelect(p)}
+            className={`grid w-full grid-cols-[240px_repeat(12,1fr)] items-center text-left transition-colors hover:bg-leaf-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-leaf ${
               idx % 2 ? "bg-leaf-soft/40" : ""
             }`}
           >
-            <div className="px-4 py-2">
-              <div className="truncate text-sm font-medium">{p.common}</div>
-              <div className="truncate text-xs italic text-muted">{p.scientific}</div>
+            <div className="flex items-center gap-2.5 px-4 py-2">
+              <PlantThumb
+                plant={p}
+                className="h-8 w-8 shrink-0 rounded-md"
+                sizes="32px"
+              />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{p.common}</div>
+                <div className="truncate text-xs italic text-muted">{p.scientific}</div>
+              </div>
             </div>
             <div className="col-span-12 grid grid-cols-12 gap-px py-2 pr-3">
               <div
@@ -440,8 +513,125 @@ function TimelineView({ plants }: { plants: Plant[] }) {
                 title={`${p.common}: ${monthRange(p.bloomStart, p.bloomEnd)}`}
               />
             </div>
-          </div>
+          </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function PlantModal({ plant, onClose }: { plant: Plant | null; onClose: () => void }) {
+  useEffect(() => {
+    if (!plant) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [plant, onClose]);
+
+  if (!plant) return null;
+  const photo = photos[plant.scientific];
+  const season = SEASONS.find((s) => s.key === plant.seasonKey);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={plant.common}
+    >
+      <div
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border bg-card shadow-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative aspect-[4/3] w-full bg-leaf-soft">
+          {photo ? (
+            <Image
+              src={photo.src}
+              alt={plant.common}
+              fill
+              sizes="(max-width: 640px) 100vw, 512px"
+              className="object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-full w-full items-center justify-center text-5xl"
+              style={{ background: `${seasonColor(plant.seasonKey)}22` }}
+              aria-hidden
+            >
+              🌿
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/55 text-lg text-white backdrop-blur transition-colors hover:bg-black/75"
+          >
+            ✕
+          </button>
+          <span
+            className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-medium text-white"
+            style={{ background: seasonColor(plant.seasonKey) }}
+          >
+            {season?.short}
+          </span>
+        </div>
+
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold leading-tight">{plant.common}</h2>
+              <p className="mt-0.5 text-sm italic text-muted">{plant.scientific}</p>
+            </div>
+            <ValueBadges plant={plant} />
+          </div>
+
+          <MiniBar start={plant.bloomStart} end={plant.bloomEnd} color={seasonColor(plant.seasonKey)} />
+          <p className="mt-1.5 text-sm text-muted">
+            Blooms{" "}
+            <span className="font-medium text-foreground">
+              {plant.bloom === "Late summer" || plant.bloom === "Fall"
+                ? plant.bloom
+                : monthRange(plant.bloomStart, plant.bloomEnd)}
+            </span>
+            {plant.window !== plant.bloom && <> · seed window {plant.window}</>}
+          </p>
+
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
+            <Meta label="Type" value={plant.type} />
+            <Meta label="Height" value={plant.height} />
+            <Meta label="Light" value={plant.light} />
+            <Meta label="Soil" value={plant.soil} />
+            <Meta label="Lifespan" value={plant.lifespan} />
+            {plant.caterpillar != null && (
+              <Meta label="Caterpillar host" value={`${plant.caterpillar} species`} />
+            )}
+          </dl>
+
+          {photo ? (
+            <p className="mt-5 border-t border-border pt-3 text-xs text-muted">
+              Photo: {photo.credit}{" "}
+              {photo.sourceUrl && (
+                <a
+                  href={photo.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-leaf hover:underline"
+                >
+                  · iNaturalist
+                </a>
+              )}
+            </p>
+          ) : (
+            <p className="mt-5 border-t border-border pt-3 text-xs text-muted">
+              No photo available yet.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
