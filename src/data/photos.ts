@@ -816,9 +816,9 @@ export const photos: Record<string, PlantPhoto> = {
   },
   "Ratibida columnifera": {
     "src": "/photos/ratibida-columnifera.jpg",
-    "credit": "(c) Bryan, some rights reserved (CC BY-NC), uploaded by Bryan",
+    "credit": "(c) Donna Pomeroy, some rights reserved (CC BY-NC)",
     "license": "cc-by-nc",
-    "sourceUrl": "https://www.inaturalist.org/taxa/78836"
+    "sourceUrl": "https://www.inaturalist.org/observations/5959942"
   },
   "Echinacea angustifolia": {
     "src": "/photos/echinacea-angustifolia.jpg",
