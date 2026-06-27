@@ -44,6 +44,7 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
   const [hummingbird, setHummingbird] = useState(false);
   const [caterpillar, setCaterpillar] = useState(false);
   const [sort, setSort] = useState<SortKey>("bloom");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -72,9 +73,11 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
     return result;
   }, [plants, query, seasons, types, lights, soils, lifespans, hummingbird, caterpillar, sort]);
 
-  const activeFilters =
+  // Filter facets (excludes the always-visible search box).
+  const filterCount =
     seasons.length + types.length + lights.length + soils.length + lifespans.length +
-    (hummingbird ? 1 : 0) + (caterpillar ? 1 : 0) + (query ? 1 : 0);
+    (hummingbird ? 1 : 0) + (caterpillar ? 1 : 0);
+  const activeFilters = filterCount + (query ? 1 : 0);
 
   const clearAll = () => {
     setQuery("");
@@ -92,14 +95,15 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
       <Header total={plants.length} />
 
       {/* Controls */}
-      <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-border bg-background/85 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[220px]">
+      <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-border bg-background/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 sm:py-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {/* Top bar: always compact */}
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <div className="relative order-1 w-full flex-1 sm:w-auto sm:min-w-[220px]">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by common or scientific name…"
+                placeholder="Search plants…"
                 className="w-full rounded-full border border-border bg-card px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-leaf"
               />
               {query && (
@@ -113,7 +117,7 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
               )}
             </div>
 
-            <div className="flex items-center rounded-full border border-border bg-card p-1 text-sm">
+            <div className="order-2 flex items-center rounded-full border border-border bg-card p-1 text-sm">
               {(["cards", "timeline"] as const).map((v) => (
                 <button
                   key={v}
@@ -122,27 +126,60 @@ export default function BloomCalendar({ plants }: { plants: Plant[] }) {
                     view === v ? "bg-leaf text-white" : "text-muted hover:text-foreground"
                   }`}
                 >
-                  {v === "cards" ? "Cards" : "Bloom timeline"}
+                  {v === "cards" ? (
+                    "Cards"
+                  ) : (
+                    <>
+                      <span className="sm:hidden">Timeline</span>
+                      <span className="hidden sm:inline">Bloom timeline</span>
+                    </>
+                  )}
                 </button>
               ))}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-muted">
-              Sort
+            {/* Mobile-only: toggle the filter panel so it isn't always pinned */}
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              aria-expanded={filtersOpen}
+              className={`order-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors sm:hidden ${
+                filterCount > 0
+                  ? "border-leaf bg-leaf text-white"
+                  : "border-border bg-card text-foreground"
+              }`}
+            >
+              <span aria-hidden>⚙</span>
+              Filters
+              {filterCount > 0 && (
+                <span
+                  className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-semibold ${
+                    filterCount > 0 ? "bg-white/25 text-white" : ""
+                  }`}
+                >
+                  {filterCount}
+                </span>
+              )}
+              <span aria-hidden className="text-xs">{filtersOpen ? "▲" : "▼"}</span>
+            </button>
+          </div>
+
+          {/* Collapsible filter panel: hidden on mobile until toggled, always shown on desktop */}
+          <div
+            className={`${filtersOpen ? "flex" : "hidden"} flex-col gap-2.5 sm:flex ${
+              filtersOpen ? "max-h-[55vh] overflow-y-auto pr-1" : ""
+            } sm:max-h-none sm:overflow-visible`}
+          >
+            <FilterRow label="Sort">
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
-                className="rounded-full border border-border bg-card px-3 py-1.5 text-foreground outline-none focus:border-leaf"
+                className="rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:border-leaf"
               >
                 <option value="bloom">Bloom start</option>
                 <option value="name">Name (A–Z)</option>
                 <option value="caterpillar">Caterpillar value</option>
               </select>
-            </label>
-          </div>
-
-          {/* Filter chips */}
-          <div className="flex flex-col gap-2.5">
+            </FilterRow>
             <FilterRow label="Season">
               {SEASONS.map((s) => (
                 <Chip
